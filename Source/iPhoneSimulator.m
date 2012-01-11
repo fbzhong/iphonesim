@@ -39,7 +39,7 @@
 @implementation iPhoneSimulator
 
 /**
- * Print usage.
+ * Print usage. 
  */
 - (void) printUsage {
     fprintf(stderr, "Usage: iphonesim <options> <command> ...\n");
@@ -48,6 +48,25 @@
     fprintf(stderr, "  launch <application path> [sdkversion] [family] [uuid]\n");
 }
 
+/**
+ * Process Path
+ */
+- (NSString *) processPath: (NSString *)path {
+    if ( [path isAbsolutePath] == NO) {
+        NSString *workingDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
+        path = [NSString stringWithFormat:@"%@/%@", workingDirectory, path];
+    }
+    
+    NSString *resolvePath = [path stringByResolvingSymlinksInPath];
+    
+    if ([resolvePath hasPrefix:@"/tmp/"]) {
+        resolvePath = [NSString stringWithFormat:@"/private%@", resolvePath];
+    }
+
+    NSLog(@"resolved app path: %@", resolvePath);
+
+    return resolvePath;
+}
 
 /**
  * List available SDK roots.
@@ -76,6 +95,8 @@
 - (void) session: (DTiPhoneSimulatorSession *) session didStart: (BOOL) started withError: (NSError *) error {
     if (started) {
         nsprintf(@"Session started");
+        // Exit when successfully launched.
+        exit(EXIT_SUCCESS);
     } else {
         nsprintf(@"Session could not be started: %@", error);
         exit(EXIT_FAILURE);
@@ -86,11 +107,15 @@
 /**
  * Launch the given Simulator binary.
  */
-- (int) launchApp: (NSString *) path withFamily:(NSString*)family uuid:(NSString*)uuid{
+- (int) launchApp: (NSString *) path withFamily:(NSString*)family uuid:(NSString*)uuid
+{
     DTiPhoneSimulatorApplicationSpecifier *appSpec;
     DTiPhoneSimulatorSessionConfig *config;
     DTiPhoneSimulatorSession *session;
     NSError *error;
+
+    /* Process Path */
+    path = [self processPath:path];
 
     /* Create the app specifier */
     appSpec = [DTiPhoneSimulatorApplicationSpecifier specifierWithApplicationPath: path];
@@ -156,27 +181,36 @@
 /**
  * Execute 'main'
  */
-- (void) runWithArgc: (int) argc argv: (char **) argv {
+- (void) runWithArgc: (int) argc argv: (char **) argv
+{
     /* Read the command */
-    if (argc < 2) {
+    if (argc < 2)
+    {
         [self printUsage];
         exit(EXIT_FAILURE);
     }
-
-    if (strcmp(argv[1], "showsdks") == 0) {
+    
+    /* Show versions of SDKs */
+    if (strcmp(argv[1], "showsdks") == 0)
+    {
         exit([self showSDKs]);
     }
-    else if (strcmp(argv[1], "launch") == 0) {
+    /* Launch the app by the simulator */
+    else if (strcmp(argv[1], "launch") == 0)
+    {
         /* Requires an additional argument */
-        if (argc < 3) {
+        if (argc < 3)
+        {
             fprintf(stderr, "Missing application path argument\n");
             [self printUsage];
             exit(EXIT_FAILURE);
         }
-        if (argc > 3) {
+        if (argc > 3)
+        {
             NSString* ver = [NSString stringWithCString:argv[3] encoding:NSUTF8StringEncoding];
             NSArray *roots = [DTiPhoneSimulatorSystemRoot knownRoots];
-            for (DTiPhoneSimulatorSystemRoot *root in roots) {
+            for (DTiPhoneSimulatorSystemRoot *root in roots)
+            {
                 NSString *v = [root sdkVersion];
                 if ([v isEqualToString:ver])
                 {
@@ -191,7 +225,8 @@
                 exit(EXIT_FAILURE);
             }
         }
-        else {
+        else
+        {
             sdkRoot = [DTiPhoneSimulatorSystemRoot defaultRoot];
         }
 
@@ -207,7 +242,20 @@
 			uuid = [NSString stringWithUTF8String:argv[5]];
 		}
         [self launchApp: [NSString stringWithUTF8String: argv[2]] withFamily:family uuid:uuid];
-    } else {
+        
+        /*
+        NSLog(@"The simulator has launched.");
+        if (retValue == EXIT_SUCCESS)
+        {
+            exit(EXIT_SUCCESS);
+        } else {
+            NSLog(@"Running simulator failed.");
+            exit(EXIT_FAILURE);
+        }
+        */
+    }
+    else
+    {
         fprintf(stderr, "Unknown command\n");
         [self printUsage];
         exit(EXIT_FAILURE);

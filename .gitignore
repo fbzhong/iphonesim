@@ -1,2 +1,6 @@
 build
-iphonesim
+.DS_Store
+*.pbxuser
+*.perspectivev3
+*.xcuserdatad
+
